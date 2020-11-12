@@ -3,6 +3,11 @@
   hosts: localhost
   gather_facts: false
   vars:
+    nios_provider:
+      host: 1.2.3.4
+      username: MyDDIusername
+      password: MyDDIpassword
+
     # vcenter variables should be passed in at run time.  I'm using a custom credential in tower.
     vcenter_hostname: 10.1.2.3
     vcenter_username: myUsername
@@ -34,7 +39,7 @@
       vcenter_password: "{{ gen1_pword }}"
 
   - name: connect to vcenter and do a basic provisioning
-#    community.vmware.vmware_guest:
+    when: vm_ip != "ddi"
     vmware_guest:
       hostname: "{{ vcenter_hostname }}"
       username: "{{ vcenter_username }}"
@@ -65,6 +70,68 @@
 #        device_type: vmxnet3
 #    delegate_to: localhost
     register: deploy_vm
+
+  - name: this block is for adding IP via Infoblox DDI
+    when: vm_ip == "ddi"
+    block:
+      - name: lookup next IP for this host
+        set_fact:
+          vm_ip_ddi: "{{ lookup('nios_next_ip', '192.168.100.0/24', provider=nios_provider)[0] }}"
+
+      - name: debug IP
+        debug:
+          var: vm_ip_ddi
+
+      - name: clean out any old ddi host entry for this name
+        nios_host_record:
+          name: "{{ vm_name }}.gregsowell.com"
+          ipv4:
+            - address: "{{ vm_ip_ddi }}"
+          state: absent
+          provider: "{{nios_provider}}"
+        ignore_errors: true #use this because this module isn't idempotent
+
+      - name: connect to vcenter and do a basic provisioning
+        when: vm_ip_ddi is defined
+        vmware_guest:
+          hostname: "{{ vcenter_hostname }}"
+          username: "{{ vcenter_username }}"
+          password: "{{ vcenter_password }}"
+          validate_certs: no
+          folder: "{{ vm_folder }}"
+          name: "{{ vm_name }}"
+          datacenter: "{{ vm_datacenter }}"
+          state: poweredon
+#          guest_id: centos64Guest
+          template: "{{ vm_template }}"
+          # This is hostname of particular ESXi server on which user wants VM to be deployed
+          disk:
+          - size_gb: "{{ vm_disksize }}"
+            type: thin
+            datastore: "{{ vm_datastore }}"
+          hardware:
+            memory_mb: "{{ vm_memory }}"
+            num_cpus: "{{ vm_cpus}}"
+            scsi: paravirtual
+          networks:
+          - name: "{{ vm_netname}}"
+            type: static
+#            mac: aa:bb:dd:aa:00:14
+            ip: "{{ vm_ip_ddi }}"
+            netmask: "{{ vm_netmask }}"
+            gateway: "{{ vm_gateway }}"
+#            device_type: vmxnet3
+#        delegate_to: localhost
+        register: deploy_vm
+
+      - name: add host record into ddi
+        nios_host_record:
+          name: "{{ vm_name }}.gregsowell.com"
+          ipv4:
+            - address: "{{ vm_ip_ddi }}"
+          state: present
+          provider: "{{nios_provider}}"
+        ignore_errors: true #use this because this module isn't idempotent
 
   - name: debug results
     debug:
