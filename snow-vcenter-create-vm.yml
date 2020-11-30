@@ -75,9 +75,9 @@
     when: vm_ip == "ddi"
     vars:
       nios_provider:
-      host: "{{ ddi_host }}"
-      username: "{{ ddi_username }}"
-      password: "{{ ddi_password }}"
+        host: "{{ ddi_host }}"
+        username: "{{ ddi_username }}"
+        password: "{{ ddi_password }}"
     block:
       - name: lookup next IP for this host
         set_fact:
