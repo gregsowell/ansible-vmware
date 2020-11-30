@@ -3,10 +3,10 @@
   hosts: localhost
   gather_facts: false
   vars:
-    nios_provider:
-      host: 1.2.3.4
-      username: MyDDIusername
-      password: MyDDIpassword
+#    nios_provider:
+#      host: 1.2.3.4
+#      username: MyDDIusername
+#      password: MyDDIpassword
 
     # vcenter variables should be passed in at run time.  I'm using a custom credential in tower.
     vcenter_hostname: 10.1.2.3
@@ -73,6 +73,11 @@
 
   - name: this block is for adding IP via Infoblox DDI
     when: vm_ip == "ddi"
+    vars:
+      nios_provider:
+      host: "{{ ddi_host }}"
+      username: "{{ ddi_username }}"
+      password: "{{ ddi_password }}"
     block:
       - name: lookup next IP for this host
         set_fact:
