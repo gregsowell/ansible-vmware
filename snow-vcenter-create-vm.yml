@@ -40,36 +40,42 @@
 
   - name: connect to vcenter and do a basic provisioning
     when: vm_ip != "ddi"
-    vmware_guest:
-      hostname: "{{ vcenter_hostname }}"
-      username: "{{ vcenter_username }}"
-      password: "{{ vcenter_password }}"
-      validate_certs: no
-      folder: "{{ vm_folder }}"
-      name: "{{ vm_name }}"
-      datacenter: "{{ vm_datacenter }}"
-      state: poweredon
+    block:
+      - name: connect to vcenter and do a basic provisioning
+        vmware_guest:
+          hostname: "{{ vcenter_hostname }}"
+          username: "{{ vcenter_username }}"
+          password: "{{ vcenter_password }}"
+          validate_certs: no
+          folder: "{{ vm_folder }}"
+          name: "{{ vm_name }}"
+          datacenter: "{{ vm_datacenter }}"
+          state: poweredon
 #      guest_id: centos64Guest
-      template: "{{ vm_template }}"
+          template: "{{ vm_template }}"
       # This is hostname of particular ESXi server on which user wants VM to be deployed
-      disk:
-      - size_gb: "{{ vm_disksize }}"
-        type: thin
-        datastore: "{{ vm_datastore }}"
-      hardware:
-        memory_mb: "{{ vm_memory }}"
-        num_cpus: "{{ vm_cpus}}"
-        scsi: paravirtual
-      networks:
-      - name: "{{ vm_netname}}"
-        type: static
+          disk:
+          - size_gb: "{{ vm_disksize }}"
+            type: thin
+            datastore: "{{ vm_datastore }}"
+          hardware:
+            memory_mb: "{{ vm_memory }}"
+            num_cpus: "{{ vm_cpus}}"
+            scsi: paravirtual
+          networks:
+          - name: "{{ vm_netname}}"
+            type: static
 #        mac: aa:bb:dd:aa:00:14
-        ip: "{{ vm_ip }}"
-        netmask: "{{ vm_netmask }}"
-        gateway: "{{ vm_gateway }}"
+            ip: "{{ vm_ip }}"
+            netmask: "{{ vm_netmask }}"
+            gateway: "{{ vm_gateway }}"
 #        device_type: vmxnet3
 #    delegate_to: localhost
-    register: deploy_vm
+        register: deploy_vm
+
+      - name: set IP as stat for workflow
+        set_stats:
+          net_host: "{{ vm_ip }}"
 
   - name: this block is for adding IP via Infoblox DDI
     when: vm_ip == "ddi"
@@ -137,6 +143,10 @@
           state: present
           provider: "{{nios_provider}}"
         ignore_errors: true #use this because this module isn't idempotent
+
+      - name: set IP as stat for workflow
+        set_stats:
+          net_host: "{{ vm_ip_ddi }}"
 
   - name: debug results
     debug:
