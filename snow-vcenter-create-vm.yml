@@ -75,7 +75,8 @@
 
       - name: set IP as stat for workflow
         set_stats:
-          net_host: "{{ vm_ip }}"
+          data:
+            net_host: "{{ vm_ip }}"
 
   - name: this block is for adding IP via Infoblox DDI
     when: vm_ip == "ddi"
@@ -146,7 +147,8 @@
 
       - name: set IP as stat for workflow
         set_stats:
-          net_host: "{{ vm_ip_ddi }}"
+          data:
+            net_host: "{{ vm_ip_ddi }}"
 
   - name: debug results
     debug:
