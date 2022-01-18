@@ -1,0 +1,83 @@
+---
+- name: provision vcenter templates via snow
+  hosts: localhost
+  gather_facts: false
+  vars:
+#    nios_provider:
+#      host: 1.2.3.4
+#      username: MyDDIusername
+#      password: MyDDIpassword
+
+    # vcenter variables should be passed in at run time.  I'm using a custom credential in tower.
+    vcenter_hostname: 10.1.2.3
+    vcenter_username: myUsername
+    vcenter_password: wrongpassword
+
+    # below are all of the details for the VM.  I'm overriding these at runtime.
+    vm_datacenter: Central
+    vm_name: snowtest2
+#    vm_template: TEMPLATE_WINDOWS_2016
+#    vm_template: TEMPLATE_RHEL_8.1
+    vm_template: TEMPLATE_CENTOS_8
+    vm_folder: /Ansible/Greg
+    vm_disksize: 50
+    vm_datastore: SSD
+    # minimum of 4GB of RAM
+    vm_memory: 4096
+    vm_cpus: 4
+    vm_netname: Greg
+    vm_ip: 10.1.12.56
+    vm_netmask: 255.255.255.0
+    vm_gateway: 10.1.12.1
+    
+  tasks:
+  - name: set creds from custom credential when supplied
+    when: gen1_pword is defined
+    no_log: true
+    ansible.builtin.set_fact:
+      vcenter_username: "{{ gen1_user }}"
+      vcenter_password: "{{ gen1_pword }}"
+
+  - name: connect to vcenter and do a basic provisioning
+    when: vm_ip != "ddi"
+    block:
+      - name: connect to vcenter and do a basic provisioning
+        community.vmware.vmware_guest:
+          hostname: "{{ vcenter_hostname }}"
+          username: "{{ vcenter_username }}"
+          password: "{{ vcenter_password }}"
+          validate_certs: no
+          folder: "{{ vm_folder }}"
+          name: "{{ vm_name }}"
+          datacenter: "{{ vm_datacenter }}"
+          state: poweredon
+#      guest_id: centos64Guest
+          template: "{{ vm_template }}"
+      # This is hostname of particular ESXi server on which user wants VM to be deployed
+          disk:
+          - size_gb: "{{ vm_disksize }}"
+            type: thin
+            datastore: "{{ vm_datastore }}"
+          hardware:
+            memory_mb: "{{ vm_memory }}"
+            num_cpus: "{{ vm_cpus}}"
+            scsi: paravirtual
+          networks:
+          - name: "{{ vm_netname}}"
+            type: static
+#        mac: aa:bb:dd:aa:00:14
+            ip: "{{ vm_ip }}"
+            netmask: "{{ vm_netmask }}"
+            gateway: "{{ vm_gateway }}"
+#        device_type: vmxnet3
+#    delegate_to: localhost
+        register: deploy_vm
+
+      - name: set IP as stat for workflow
+        ansible.builtin.set_stats:
+          data:
+            net_host: "{{ vm_ip }}"
+
+  - name: debug results
+    ansible.builtin.debug:
+      var: deploy_vm
